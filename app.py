@@ -129,7 +129,6 @@ def search():
   if key:
     sql_key = "%" + key + "%"
     query_list.append(Press.pressTitle.like(sql_key))
-  print query_list, key
   all_press = Press.query.filter(*query_list).all()
   presses = model_to_dict(all_press)
   data = dict({"success": "success", "data": presses})
