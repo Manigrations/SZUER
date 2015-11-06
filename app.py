@@ -12,6 +12,7 @@ from flask import Flask, request
 import json
 from datetime import datetime, date
 from flask.ext.sqlalchemy import SQLAlchemy
+from sqlalchemy import desc
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:@localhost/pressDB'
@@ -42,8 +43,8 @@ class DatetimeEncoder(json.JSONEncoder):
 ### commom method
 ######
 def model_to_dict(all_press):
-  if len(all_press) == 0:
-    return []
+  # if len(all_press) == 0:
+  #   return []
   presses = []
   for p in all_press:
     presses.append({
@@ -59,60 +60,79 @@ def model_to_dict(all_press):
     })
   return presses
 
+def fetch_by_pressType(pressType, offset=0):
+  all_press = Press.query.filter_by(pressType=pressType).order_by(desc(Press.pressTime)).limit(20).offset(offset)
+  presses = model_to_dict(all_press)
+  return presses
+
 #######
 ### routes
 ######
-@app.route('/press/fetch_new_press', methods=['get'])
+@app.route('/press/fetch_new', methods=['get'])
 def fetch_new_press():
-  data = dict({"success": "success"})
-  return jsonify(data)
+  offset = request.args.get('offset') or 0
+  target_time = request.args.get('target_time')
+  press_type = request.args.get('press_type')
+  query_list = [Press.pressTime > target_time]
+  if pressType:
+    query_list.append(Press.pressType == pressType)
+  all_press = Press.query.filter(*query_list).order_by(desc(Press.pressTime)).limit(20).offset(offset).all()
+  presses = model_to_dict(all_press)
+  data = dict({"success": "success", "data": presses})
+  return json.dumps(data, cls=DatetimeEncoder)
 
-@app.route('/press/fetch_all', methods=['get'])
+@app.route('/press/fetch_old', methods=['get'])
 def fetch_all():
-  all_press = Press.query.all()
+  offset = request.args.get('offset') or 0
+  target_time = request.args.get('target_time')
+  query_list = [Press.pressTime > target_time]
+  if pressType:
+    query_list.append(Press.pressType == pressType)
+  all_press = Press.query.filter(*query_list).order_by(desc(Press.pressTime)).limit(20).offset(offset).all()
   presses = model_to_dict(all_press)
   data = dict({"success": "success", "data": presses})
   return json.dumps(data, cls=DatetimeEncoder)
 
 @app.route('/press/top', methods=['get'])
 def fetch_top():
-  all_press = Press.query.filter_by(pressIsTop=1)
+  offset = request.args.get('offset') or 0
+  all_press = Press.query.filter_by(pressIsTop=1).order_by(desc(Press.pressTime)).limit(20).offset(offset)
   presses = model_to_dict(all_press)
   data = dict({"success": "success", "data": presses})
   return json.dumps(data, cls=DatetimeEncoder)
 
 @app.route('/press/teaching', methods=['get'])
 def teaching():
-  all_press = Press.query.filter_by(pressType="教务")
-  presses = model_to_dict(all_press)
+  offset = request.args.get('offset') or 0
+  presses = fetch_by_pressType("教务", offset)
   data = dict({"success": "success", "data": presses})
   return json.dumps(data, cls=DatetimeEncoder)
 
 @app.route('/press/research', methods=['get'])
-def researchch():
-  all_press = Press.query.filter_by(pressType="学术")
-  presses = model_to_dict(all_press)
+def research():
+  offset = request.args.get('offset') or 0
+  presses = fetch_by_pressType("学术", offset)
   data = dict({"success": "success", "data": presses})
   return json.dumps(data, cls=DatetimeEncoder)
 
 @app.route('/press/administratation', methods=['get'])
 def administratation():
-  all_press = Press.query.filter_by(pressType="行政")
-  presses = model_to_dict(all_press)
+  offset = request.args.get('offset') or 0
+  presses = fetch_by_pressType("行政", offset)
   data = dict({"success": "success", "data": presses})
   return json.dumps(data, cls=DatetimeEncoder)
 
 @app.route('/press/student', methods=['get'])
 def student():
-  all_press = Press.query.filter_by(pressType="学工")
-  presses = model_to_dict(all_press)
+  offset = request.args.get('offset') or 0
+  presses = fetch_by_pressType("学工", offset)
   data = dict({"success": "success", "data": presses})
   return json.dumps(data, cls=DatetimeEncoder)
 
 @app.route('/press/school', methods=['get'])
 def school():
-  all_press = Press.query.filter_by(pressType="校园")
-  presses = model_to_dict(all_press)
+  offset = request.args.get('offset') or 0
+  presses = fetch_by_pressType("校园", offset)
   data = dict({"success": "success", "data": presses})
   return json.dumps(data, cls=DatetimeEncoder)
 
@@ -121,6 +141,7 @@ def search():
   type = request.args.get('type')
   key = request.args.get('key')
   dept = request.args.get('dept')
+  offset = request.args.get('offset') or 0
   query_list = []
   if type:
     query_list.append(Press.pressType == type)
@@ -129,7 +150,7 @@ def search():
   if key:
     sql_key = "%" + key + "%"
     query_list.append(Press.pressTitle.like(sql_key))
-  all_press = Press.query.filter(*query_list).all()
+  all_press = Press.query.filter(*query_list).order_by(desc(Press.pressTime)).limit(20).offset(offset).all()
   presses = model_to_dict(all_press)
   data = dict({"success": "success", "data": presses})
   return json.dumps(data, cls=DatetimeEncoder)
